@@ -215,10 +215,15 @@ step "2/5 Launcher and Wine workaround shims"
 L="$WINEPREFIX/launcher"
 if [ "$HERE" != "$(readlink -f "$L" 2>/dev/null)" ]; then
     mkdir -p "$L"
-    tar -C "$HERE" --exclude=.git --exclude='*.so' --exclude='*.o' -cf - . | tar -C "$L" -xf - ||
-        die "copying the launcher to $L failed"
+    tar -C "$HERE" --exclude=.git --exclude='*.so' --exclude='*.o' --exclude='*.exe' -cf - . |
+        tar -C "$L" -xf - || die "copying the launcher to $L failed"
     say "Copied $HERE to $L"
 fi
+# A download or a checkout without file modes loses the executable bits; the
+# desktop entries run acad.sh and urlhandler.sh directly (a sign-in link handed
+# to a non-executable urlhandler.sh is silently dropped).
+chmod +x "$L/acad.sh" "$L/urlhandler.sh" "$L/install.sh" "$L/appkeyfix/build.sh" ||
+    die "making the launcher scripts in $L executable failed"
 for s in installshim gosvcfix; do
     if [ ! "$L/$s.so" -nt "$L/$s.c" ]; then
         run gcc -O2 -shared -fPIC -o "$L/$s.so" "$L/$s.c" -ldl || die "building $s.so failed"
